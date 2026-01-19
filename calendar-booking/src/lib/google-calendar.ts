@@ -6,6 +6,8 @@ import type {
   GoogleFreeBusyResponse,
   BusyBlock,
   CalendarEventData,
+  CalendarEvent,
+  CalendarInfo,
 } from '@/types';
 
 // OAuth2 scopes required for calendar access
@@ -17,9 +19,13 @@ export const GOOGLE_CALENDAR_SCOPES = [
 
 // Create OAuth2 client
 export function createOAuth2Client() {
+  // Use GOOGLE_CALENDAR_* if set, otherwise fall back to GOOGLE_* (same credentials)
+  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+
   return new google.auth.OAuth2(
-    process.env.GOOGLE_CALENDAR_CLIENT_ID,
-    process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    clientId,
+    clientSecret,
     `${process.env.NEXT_PUBLIC_APP_URL}/api/google/callback`
   );
 }
@@ -434,5 +440,124 @@ export async function getUserInfo(accessToken: string): Promise<{ email: string;
   return {
     email: response.data.email!,
     name: response.data.name || undefined,
+  };
+}
+
+// Get events from a single calendar
+export async function getCalendarEvents(
+  connectedAccountId: string,
+  calendarId: string,
+  timeMin: Date,
+  timeMax: Date
+): Promise<CalendarEvent[]> {
+  const oauth2Client = await getAuthenticatedClient(connectedAccountId);
+  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+  const response = await calendar.events.list({
+    calendarId,
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
+    singleEvents: true, // Expand recurring events
+    orderBy: 'startTime',
+    maxResults: 2500,
+  });
+
+  if (!response.data.items) {
+    return [];
+  }
+
+  return response.data.items
+    .filter((event) => event.status !== 'cancelled')
+    .map((event) => ({
+      id: event.id!,
+      calendarId,
+      calendarName: '', // Will be filled by caller
+      calendarColor: undefined, // Will be filled by caller
+      accountEmail: '', // Will be filled by caller
+      summary: event.summary || '(No title)',
+      description: event.description || undefined,
+      start: event.start?.dateTime
+        ? new Date(event.start.dateTime)
+        : new Date(event.start?.date + 'T00:00:00'),
+      end: event.end?.dateTime
+        ? new Date(event.end.dateTime)
+        : new Date(event.end?.date + 'T00:00:00'),
+      isAllDay: !event.start?.dateTime,
+      location: event.location || undefined,
+      meetingUrl:
+        event.conferenceData?.entryPoints?.find((e) => e.entryPointType === 'video')?.uri ||
+        event.hangoutLink ||
+        undefined,
+      status: (event.status as 'confirmed' | 'tentative' | 'cancelled') || 'confirmed',
+      htmlLink: event.htmlLink || undefined,
+    }));
+}
+
+// Get events from all selected calendars across all connected accounts
+export async function getCompositeEvents(
+  userId: string,
+  timeMin: Date,
+  timeMax: Date
+): Promise<{ events: CalendarEvent[]; calendars: CalendarInfo[] }> {
+  // Get all selected calendars grouped by connected account
+  const calendars = await prisma.calendar.findMany({
+    where: {
+      userId,
+      isSelected: true,
+      connectedAccount: { isValid: true },
+    },
+    include: {
+      connectedAccount: {
+        select: { email: true },
+      },
+    },
+  });
+
+  const calendarInfo = calendars.map((cal) => ({
+    id: cal.id,
+    googleCalendarId: cal.googleCalendarId,
+    name: cal.name,
+    color: cal.color || undefined,
+    accountEmail: cal.connectedAccount.email,
+    connectedAccountId: cal.connectedAccountId,
+  }));
+
+  // Fetch events from each calendar in parallel
+  const eventsPromises = calendarInfo.map(async (cal) => {
+    try {
+      const events = await getCalendarEvents(
+        cal.connectedAccountId,
+        cal.googleCalendarId,
+        timeMin,
+        timeMax
+      );
+      // Enrich events with calendar metadata
+      return events.map((event) => ({
+        ...event,
+        calendarId: cal.id,
+        calendarName: cal.name,
+        calendarColor: cal.color,
+        accountEmail: cal.accountEmail,
+      }));
+    } catch (error) {
+      console.error(`Error fetching events for calendar ${cal.id}:`, error);
+      return [];
+    }
+  });
+
+  const allEventsArrays = await Promise.all(eventsPromises);
+  const events = allEventsArrays.flat();
+
+  // Sort events by start time
+  events.sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  return {
+    events,
+    calendars: calendarInfo.map((cal) => ({
+      id: cal.id,
+      name: cal.name,
+      color: cal.color,
+      accountEmail: cal.accountEmail,
+    })),
   };
 }

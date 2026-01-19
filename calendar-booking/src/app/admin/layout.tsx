@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Bookings', href: '/admin', icon: CalendarDays },
+  { name: 'Calendar', href: '/admin/calendar', icon: Calendar },
   { name: 'Event Types', href: '/admin/event-types', icon: LinkIcon },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];

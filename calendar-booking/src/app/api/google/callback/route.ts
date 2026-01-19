@@ -83,8 +83,23 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Error in OAuth callback:', error);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    // Provide more specific error codes
+    let errorCode = 'callback_failed';
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (errorMessage.includes('invalid_grant')) {
+      errorCode = 'invalid_grant';
+    } else if (errorMessage.includes('redirect_uri_mismatch')) {
+      errorCode = 'redirect_uri_mismatch';
+    } else if (errorMessage.includes('Missing required tokens')) {
+      errorCode = 'missing_tokens';
+    } else if (errorMessage.includes('Token refresh failed')) {
+      errorCode = 'token_refresh_failed';
+    }
+
     return NextResponse.redirect(
-      `${appUrl}/admin/settings?error=callback_failed`
+      `${appUrl}/admin/settings?error=${errorCode}`
     );
   }
 }

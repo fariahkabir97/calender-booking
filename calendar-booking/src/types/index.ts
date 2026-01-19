@@ -112,3 +112,29 @@ export interface CalendarEventData {
   conferenceData?: boolean; // Auto-create Google Meet
 }
 
+// Calendar event fetched from Google Calendar (for display)
+export interface CalendarEvent {
+  id: string;
+  calendarId: string;
+  calendarName: string;
+  calendarColor?: string;
+  accountEmail: string;
+  summary: string;
+  description?: string;
+  start: Date;
+  end: Date;
+  isAllDay: boolean;
+  location?: string;
+  meetingUrl?: string;
+  status: 'confirmed' | 'tentative' | 'cancelled';
+  htmlLink?: string;
+}
+
+// Calendar info for filtering
+export interface CalendarInfo {
+  id: string;
+  name: string;
+  color?: string;
+  accountEmail: string;
+}
+

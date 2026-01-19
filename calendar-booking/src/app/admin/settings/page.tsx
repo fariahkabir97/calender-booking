@@ -61,6 +61,10 @@ export default function SettingsPage() {
         unauthorized: 'You are not authorized to complete this action.',
         token_exchange_failed: 'Failed to exchange authorization code.',
         callback_failed: 'Authorization callback failed.',
+        invalid_grant: 'Authorization code expired or already used. Please try again.',
+        redirect_uri_mismatch: 'Redirect URI mismatch. Check Google Cloud Console settings.',
+        missing_tokens: 'Google did not return refresh token. Try removing app access in Google Account settings and reconnect.',
+        token_refresh_failed: 'Failed to refresh access token. Please reconnect your account.',
       };
       setMessage({
         type: 'error',
