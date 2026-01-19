@@ -1,4 +1,8 @@
-import { LocationType, BookingStatus } from '@prisma/client';
+// Location types for event types
+export type LocationType = 'GOOGLE_MEET' | 'ZOOM' | 'PHONE' | 'IN_PERSON' | 'CUSTOM';
+
+// Booking status
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 
 // Working hours configuration
 export interface WorkingHours {
@@ -108,5 +112,3 @@ export interface CalendarEventData {
   conferenceData?: boolean; // Auto-create Google Meet
 }
 
-// Re-export Prisma types
-export { LocationType, BookingStatus };

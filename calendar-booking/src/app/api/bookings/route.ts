@@ -9,7 +9,6 @@ import { rateLimit, RATE_LIMITS, getClientIP } from '@/lib/rate-limit';
 import { hashString } from '@/lib/encryption';
 import { addMinutes } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
-import { LocationType } from '@prisma/client';
 
 // GET /api/bookings - List bookings (admin only)
 export async function GET(request: Request) {
@@ -191,7 +190,7 @@ export async function POST(request: Request) {
           attendeePhone,
           attendeeCompany,
           attendeeNotes,
-          customResponses,
+          customResponses: customResponses as Record<string, string> | undefined,
           idempotencyKey,
           status: eventType.requiresConfirmation ? 'PENDING' : 'CONFIRMED',
         },
@@ -205,7 +204,7 @@ export async function POST(request: Request) {
     let googleEventId: string | undefined;
 
     try {
-      const shouldCreateMeet = eventType.locationType === LocationType.GOOGLE_MEET;
+      const shouldCreateMeet = eventType.locationType === 'GOOGLE_MEET';
 
       const calendarResult = await createCalendarEvent(
         connectedAccount.id,

@@ -3,7 +3,18 @@ import { createEvents, EventAttributes } from 'ics';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy-load Resend client to avoid build-time errors when API key is missing
+let resend: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 interface BookingEmailData {
   attendeeName: string;
@@ -145,7 +156,7 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData): Prom
     </html>
   `;
 
-  await resend.emails.send({
+  await getResendClient().emails.send({
     from: process.env.EMAIL_FROM || 'Calendar Booking <bookings@example.com>',
     to: data.attendeeEmail,
     subject: `Confirmed: ${data.eventTypeName} with ${data.hostName}`,
@@ -211,7 +222,7 @@ export async function sendHostNotificationEmail(data: BookingEmailData): Promise
     </html>
   `;
 
-  await resend.emails.send({
+  await getResendClient().emails.send({
     from: process.env.EMAIL_FROM || 'Calendar Booking <bookings@example.com>',
     to: data.hostEmail,
     subject: `New Booking: ${data.eventTypeName} with ${data.attendeeName}`,
@@ -275,7 +286,7 @@ export async function sendCancellationEmail(
     </html>
   `;
 
-  await resend.emails.send({
+  await getResendClient().emails.send({
     from: process.env.EMAIL_FROM || 'Calendar Booking <bookings@example.com>',
     to: data.attendeeEmail,
     subject: `Cancelled: ${data.eventTypeName} with ${data.hostName}`,

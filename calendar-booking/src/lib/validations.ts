@@ -55,7 +55,7 @@ export const bookingSchema = z.object({
   attendeePhone: z.string().max(20).optional(),
   attendeeCompany: z.string().max(100).optional(),
   attendeeNotes: z.string().max(1000).optional(),
-  customResponses: z.record(z.string()).optional(),
+  customResponses: z.record(z.string(), z.string()).optional(),
   idempotencyKey: z.string().optional(),
 });
 
