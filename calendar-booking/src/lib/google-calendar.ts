@@ -12,6 +12,7 @@ import type {
 
 // OAuth2 scopes required for calendar access
 export const GOOGLE_CALENDAR_SCOPES = [
+  'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/calendar.readonly',
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/calendar.freebusy',

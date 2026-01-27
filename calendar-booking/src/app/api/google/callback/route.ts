@@ -8,11 +8,16 @@ import {
 } from '@/lib/google-calendar';
 
 export async function GET(request: Request) {
+  console.log('=== Google OAuth Callback Hit ===');
+  console.log('Full URL:', request.url);
+
   try {
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
+
+    console.log('Params:', { hasCode: !!code, hasState: !!state, error });
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -56,7 +61,13 @@ export async function GET(request: Request) {
     }
 
     // Exchange code for tokens
+    console.log('Exchanging code for tokens...');
     const tokens = await exchangeCodeForTokens(code);
+    console.log('Tokens received:', {
+      hasAccessToken: !!tokens.access_token,
+      hasRefreshToken: !!tokens.refresh_token,
+      scope: tokens.scope
+    });
 
     if (!tokens.access_token) {
       return NextResponse.redirect(
@@ -65,17 +76,23 @@ export async function GET(request: Request) {
     }
 
     // Get user info from Google to get email
+    console.log('Getting user info...');
     const userInfo = await getUserInfo(tokens.access_token);
+    console.log('User info:', userInfo.email);
 
     // Save connected account
+    console.log('Saving connected account...');
     const connectedAccount = await saveConnectedAccount(
       session.user.id,
       userInfo.email,
       tokens
     );
+    console.log('Connected account saved:', connectedAccount.id);
 
     // Sync calendars from this account
+    console.log('Syncing calendars...');
     await syncCalendars(session.user.id, connectedAccount.id);
+    console.log('Calendars synced successfully');
 
     return NextResponse.redirect(
       `${appUrl}/admin/settings?success=google_connected`
@@ -98,8 +115,10 @@ export async function GET(request: Request) {
       errorCode = 'token_refresh_failed';
     }
 
+    // Include error details in URL for debugging
+    const errorDetails = encodeURIComponent(errorMessage.substring(0, 200));
     return NextResponse.redirect(
-      `${appUrl}/admin/settings?error=${errorCode}`
+      `${appUrl}/admin/settings?error=${errorCode}&details=${errorDetails}`
     );
   }
 }
